@@ -62,6 +62,19 @@ class MandaniStudioBot:
         
         logger.info("🚀 ربات استودیو ماندنی راه‌اندازی شد")
     
+    async def error_handler(self, update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """مدیریت خطاهای ربات"""
+        logger.error("خطا در ربات:", exc_info=context.error)
+        
+        # ارسال پیام خطا به کاربر (اگر update موجود باشد)
+        if isinstance(update, Update) and update.effective_message:
+            try:
+                await update.effective_message.reply_text(
+                    "❌ متأسفانه خطایی رخ داده. لطفاً دوباره تلاش کنید یا با پشتیبانی تماس بگیرید."
+                )
+            except Exception:
+                pass  # اگر نتوان پیام ارسال کرد، نادیده بگیر
+    
     def get_main_menu_keyboard(self, is_admin: bool = False) -> InlineKeyboardMarkup:
         """ایجاد کیبورد منوی اصلی"""
         keyboard = [
@@ -337,11 +350,38 @@ class MandaniStudioBot:
                 parse_mode=ParseMode.MARKDOWN
             )
         
-        # انتخاب نوع خدمت
-        elif data.startswith("service_"):
+        # انتخاب نوع خدمت - فقط در conversation state
+        elif data.startswith("service_") and context.user_data.get('state') == WAITING_SERVICE_TYPE:
             service_type = data.replace("service_", "")
-            self.user_data[user_id] = {"service_type": service_type}
-            await self.handle_service_selection(query, context, service_type)
+            service_name = CostCalculator.get_service_name(service_type)
+            
+            # ذخیره نوع خدمت
+            if user_id not in self.user_data:
+                self.user_data[user_id] = {}
+            self.user_data[user_id]['service_type'] = service_type
+            
+            # اگر عروسی است، نام عروس را بپرس
+            if service_type == 'wedding':
+                await query.edit_message_text(
+                    f"💒 **{service_name}**\n\n👰 لطفاً نام عروس را وارد کنید:",
+                    reply_markup=InlineKeyboardMarkup([[
+                        InlineKeyboardButton("🔙 بازگشت", callback_data="back_to_main")
+                    ]]),
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                context.user_data['state'] = WAITING_BRIDE_NAME
+                return WAITING_BRIDE_NAME
+            else:
+                # برای سایر خدمات، مستقیم به تاریخ مراسم برو
+                await query.edit_message_text(
+                    f"🎬 **{service_name}**\n\n📅 لطفاً تاریخ مراسم را وارد کنید (فرمت: ۱۴۰۳/۰۸/۱۵):",
+                    reply_markup=InlineKeyboardMarkup([[
+                        InlineKeyboardButton("🔙 بازگشت", callback_data="back_to_main")
+                    ]]),
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                context.user_data['state'] = WAITING_EVENT_DATE
+                return WAITING_EVENT_DATE
         
         # پنل ادمین
         elif data == "admin_panel":
@@ -395,7 +435,8 @@ class MandaniStudioBot:
             )
             return WAITING_NAME
     
-    async def handle_service_selection(self, query, context, service_type):
+    # REMOVED: handle_service_selection - moved to button_callback
+    async def _deprecated_handle_service_selection(self, query, context, service_type):
         """مدیریت انتخاب نوع خدمت"""
         user_id = query.from_user.id
         
@@ -602,8 +643,23 @@ class MandaniStudioBot:
         user_id = update.effective_user.id
         name = update.message.text.strip()
         
+        # اعتبارسنجی نام
         if len(name) < 2:
-            await update.message.reply_text("❌ لطفاً نام خود را وارد کنید (حداقل ۲ کاراکتر)")
+            await update.message.reply_text(
+                "❌ نام باید حداقل ۲ کاراکتر باشد.\n📝 مثال: علی، فاطمه",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("🔙 انصراف", callback_data="back_to_main")
+                ]])
+            )
+            return WAITING_NAME
+        
+        if len(name) > 50:
+            await update.message.reply_text(
+                "❌ نام نمی‌تواند بیشتر از ۵۰ کاراکتر باشد.",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("🔙 انصراف", callback_data="back_to_main")
+                ]])
+            )
             return WAITING_NAME
         
         # ذخیره نام
@@ -612,10 +668,11 @@ class MandaniStudioBot:
         self.user_data[user_id]['name'] = name
         
         await update.message.reply_text(
-            f"✅ نام ثبت شد: {name}\n\n👨‍👩‍👧‍👦 لطفاً نام خانوادگی خود را وارد کنید:",
+            f"✅ نام ثبت شد: **{name}**\n\n👨‍👩‍👧‍👦 لطفاً نام خانوادگی خود را وارد کنید:",
             reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("🔙 بازگشت", callback_data="back_to_main")
-            ]])
+                InlineKeyboardButton("🔙 انصراف", callback_data="back_to_main")
+            ]]),
+            parse_mode=ParseMode.MARKDOWN
         )
         
         context.user_data['state'] = WAITING_FAMILY_NAME
@@ -694,8 +751,8 @@ class MandaniStudioBot:
                 reply_markup=self.get_service_type_keyboard()
             )
             
-            context.user_data['state'] = None
-            return ConversationHandler.END
+            context.user_data['state'] = WAITING_SERVICE_TYPE
+            return WAITING_SERVICE_TYPE
             
         except Exception as e:
             logger.error(f"خطا در ثبت مشتری: {e}")
@@ -1158,6 +1215,7 @@ class MandaniStudioBot:
                 WAITING_FAMILY_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_family_name_input)],
                 WAITING_PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_phone_input)],
                 WAITING_EMAIL: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_email_input)],
+                WAITING_SERVICE_TYPE: [CallbackQueryHandler(self.button_callback)],
                 WAITING_BRIDE_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_bride_name_input)],
                 WAITING_GUEST_COUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_guest_count_input)],
                 WAITING_EVENT_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_event_date_input)],
@@ -1283,6 +1341,9 @@ class MandaniStudioBot:
         application.add_handler(self.setup_conversation_handler())
         application.add_handler(CallbackQueryHandler(self.button_callback))
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_text_message))
+        
+        # اضافه کردن error handler
+        application.add_error_handler(self.error_handler)
         
         # تنظیم یادآوری‌ها (اگر JobQueue موجود باشد)
         try:

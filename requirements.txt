@@ -1,23 +1,32 @@
-# 🤖 وابستگی‌های ربات استودیو مندانی
+# 🤖 وابستگی‌های ربات استودیو ماندنی
 # Mandani Studio Bot Dependencies
 
-# Telegram Bot Framework
-python-telegram-bot==20.6
+# Telegram Bot Framework (Latest stable)
+python-telegram-bot==20.7
 
 # PDF Generation
-reportlab==4.0.4
+reportlab==4.0.5
 
-# Database (included in Python standard library)
-# sqlite3
-
-# Date and Time utilities (optional - for better Persian date support)
-# jdatetime==4.1.0
-
-# Additional utilities for production deployment
+# Environment Variables
 python-dotenv==1.0.0
 
-# For better logging
+# Better Persian Date Support  
+jdatetime==4.1.0
+
+# Enhanced JSON Logging
 python-json-logger==2.0.7
+
+# HTTP Requests (for external APIs)
+requests==2.31.0
+
+# Async HTTP Client
+httpx==0.25.2
+
+# Performance and Monitoring
+psutil==5.9.6
+
+# Data Validation
+pydantic==2.5.0
 
 # For environment configuration
 pydantic==2.4.2
