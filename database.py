@@ -81,6 +81,77 @@ class DatabaseManager:
                     username TEXT,
                     full_name TEXT,
                     added_by INTEGER,
+                    is_active BOOLEAN DEFAULT 1,
+                    permissions TEXT, -- JSON string with permissions
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (added_by) REFERENCES admins(telegram_id)
+                )
+            ''')
+            
+            # جدول پرداخت‌ها
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS payments (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    payment_id TEXT UNIQUE NOT NULL,
+                    reservation_code TEXT NOT NULL,
+                    gateway TEXT NOT NULL, -- zarinpal, mellat, parsian
+                    authority TEXT,
+                    amount INTEGER NOT NULL,
+                    status TEXT DEFAULT 'pending', -- pending, verified, failed, cancelled, refunded
+                    ref_id TEXT,
+                    card_hash TEXT,
+                    card_pan TEXT,
+                    payment_type TEXT DEFAULT 'deposit', -- deposit, full, remaining
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    verified_at TIMESTAMP,
+                    FOREIGN KEY (reservation_code) REFERENCES reservations(reservation_code)
+                )
+            ''')
+            
+            # جدول نظرات و امتیازات
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS reviews (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    reservation_code TEXT NOT NULL,
+                    customer_id INTEGER,
+                    rating INTEGER CHECK(rating >= 1 AND rating <= 5),
+                    comment TEXT,
+                    photos TEXT, -- JSON array of photo paths
+                    is_published BOOLEAN DEFAULT 0,
+                    admin_response TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (customer_id) REFERENCES customers(id),
+                    FOREIGN KEY (reservation_code) REFERENCES reservations(reservation_code)
+                )
+            ''')
+            
+            # جدول گالری تصاویر
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS gallery (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title TEXT NOT NULL,
+                    description TEXT,
+                    service_type TEXT, -- wedding, birthday, corporate
+                    image_path TEXT NOT NULL,
+                    thumbnail_path TEXT,
+                    file_id TEXT, -- Telegram file_id
+                    is_featured BOOLEAN DEFAULT 0,
+                    sort_order INTEGER DEFAULT 0,
+                    views_count INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    uploaded_by INTEGER,
+                    FOREIGN KEY (uploaded_by) REFERENCES admins(telegram_id)
+                )
+            ''')
+            
+            # جدول ادمین‌ها (قدیمی - برای سازگاری)
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS admins (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    telegram_id INTEGER UNIQUE NOT NULL,
+                    username TEXT,
+                    full_name TEXT,
+                    added_by INTEGER,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (added_by) REFERENCES admins(telegram_id)
                 )
@@ -223,6 +294,66 @@ class DatabaseManager:
                     result['service_details'] = json.loads(result['service_details'])
                 results.append(result)
             return results
+
+    def create_payment_record(self, payment_data: Dict) -> int:
+        """ایجاد رکورد پرداخت"""
+        with self.get_connection() as conn:
+            cursor = conn.execute('''
+                INSERT INTO payments (
+                    payment_id, reservation_code, gateway, authority,
+                    amount, status, payment_type
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                payment_data['payment_id'],
+                payment_data['reservation_code'], 
+                payment_data['gateway'],
+                payment_data['authority'],
+                payment_data['amount'],
+                payment_data['status'],
+                payment_data.get('payment_type', 'deposit')
+            ))
+            conn.commit()
+            return cursor.lastrowid
+
+    def get_payment_by_id(self, payment_id: str) -> Optional[Dict]:
+        """دریافت پرداخت بر اساس شناسه"""
+        with self.get_connection() as conn:
+            cursor = conn.execute('''
+                SELECT * FROM payments WHERE payment_id = ?
+            ''', (payment_id,))
+            result = cursor.fetchone()
+            return dict(result) if result else None
+
+    def update_payment_status(self, payment_id: str, status: str, 
+                            ref_id: str = "", card_hash: str = ""):
+        """بروزرسانی وضعیت پرداخت"""
+        with self.get_connection() as conn:
+            conn.execute('''
+                UPDATE payments 
+                SET status = ?, ref_id = ?, card_hash = ?, verified_at = CURRENT_TIMESTAMP
+                WHERE payment_id = ?
+            ''', (status, ref_id, card_hash, payment_id))
+            conn.commit()
+
+    def update_reservation_status(self, reservation_code: str, status: str):
+        """بروزرسانی وضعیت رزرو"""
+        with self.get_connection() as conn:
+            conn.execute('''
+                UPDATE reservations 
+                SET booking_status = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE reservation_code = ?
+            ''', (status, reservation_code))
+            conn.commit()
+
+    def get_payments_by_reservation(self, reservation_code: str) -> List[Dict]:
+        """دریافت پرداخت‌های یک رزرو"""
+        with self.get_connection() as conn:
+            cursor = conn.execute('''
+                SELECT * FROM payments 
+                WHERE reservation_code = ? 
+                ORDER BY created_at DESC
+            ''', (reservation_code,))
+            return [dict(row) for row in cursor.fetchall()]
 
     def search_reservations(self, query: str, search_type: str = 'all') -> List[Dict]:
         """

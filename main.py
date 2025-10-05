@@ -807,21 +807,18 @@ class MandaniStudioBot:
         name = update.message.text.strip()
         
         # اعتبارسنجی نام
-        if len(name) < 2:
+        if not ValidationUtils.validate_persian_text(name, 2, 50):
             await update.message.reply_text(
-                "❌ نام باید حداقل ۲ کاراکتر باشد.\n📝 مثال: علی، فاطمه",
+                "❌ نام نامعتبر است!\n\n"
+                "� **شرایط نام:**\n"
+                "• حداقل ۲ کاراکتر\n"
+                "• حداکثر ۵۰ کاراکتر\n"
+                "• فقط حروف فارسی یا انگلیسی\n"
+                "• مثال: علی، فاطمه، Sara",
                 reply_markup=InlineKeyboardMarkup([[
                     InlineKeyboardButton("🔙 انصراف", callback_data="back_to_main")
-                ]])
-            )
-            return WAITING_NAME
-        
-        if len(name) > 50:
-            await update.message.reply_text(
-                "❌ نام نمی‌تواند بیشتر از ۵۰ کاراکتر باشد.",
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton("🔙 انصراف", callback_data="back_to_main")
-                ]])
+                ]]),
+                parse_mode=ParseMode.MARKDOWN
             )
             return WAITING_NAME
         
@@ -976,12 +973,23 @@ class MandaniStudioBot:
         user_id = update.effective_user.id
         event_date = update.message.text.strip()
         
-        # اعتبارسنجی ساده تاریخ
-        if len(event_date) < 8:
-            await update.message.reply_text("❌ لطفاً تاریخ را به فرمت صحیح وارد کنید (مثال: ۱۴۰۳/۰۸/۱۵)")
+        # اعتبارسنجی تاریخ
+        if not ValidationUtils.validate_date(event_date):
+            await update.message.reply_text(
+                "❌ تاریخ نامعتبر است!\n\n"
+                "📅 **فرمت صحیح:**\n"
+                "• ۱۴۰۳/۰۸/۱۵\n"
+                "• سال/ماه/روز\n"
+                "• از اعداد فارسی استفاده کنید\n"
+                "• سال باید بین ۱۴۰۰ تا ۱۴۱۰ باشد",
+                parse_mode=ParseMode.MARKDOWN
+            )
             return WAITING_EVENT_DATE
         
         self.user_data[user_id]['event_date'] = event_date
+        
+        # ذخیره پیش‌نویس
+        self.save_reservation_draft(user_id, WAITING_EVENT_TIME)
         
         await update.message.reply_text(
             f"✅ تاریخ مراسم ثبت شد: {event_date}\n\n� لطفاً ساعت شروع مراسم را وارد کنید (مثال: ۱۸:۳۰):",
@@ -997,14 +1005,24 @@ class MandaniStudioBot:
         user_id = update.effective_user.id
         event_time = update.message.text.strip()
         
-        # اعتبارسنجی ساده زمان
+        # اعتبارسنجی زمان
         if not ValidationUtils.validate_time(event_time):
             await update.message.reply_text(
-                "❌ زمان نامعتبر است!\n\nلطفاً زمان را به فرمت صحیح وارد کنید:\n• مثال: ۱۸:۳۰ یا ۶:۳۰ عصر"
+                "❌ زمان نامعتبر است!\n\n"
+                "🕐 **فرمت‌های صحیح:**\n"
+                "• ۱۸:۳۰ (24 ساعته)\n"
+                "• ۶:۳۰ عصر (12 ساعته)\n"
+                "• ۱۰ صبح\n"
+                "• ۲ بعدازظهر\n\n"
+                "از اعداد فارسی استفاده کنید",
+                parse_mode=ParseMode.MARKDOWN
             )
             return WAITING_EVENT_TIME
         
         self.user_data[user_id]['event_time'] = event_time
+        
+        # ذخیره پیش‌نویس
+        self.save_reservation_draft(user_id, WAITING_LOCATION)
         
         await update.message.reply_text(
             f"✅ زمان شروع مراسم ثبت شد: {event_time}\n\n📍 لطفاً مکان مراسم را وارد کنید:",

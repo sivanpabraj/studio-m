@@ -238,18 +238,91 @@ class ValidationUtils:
     
     @staticmethod
     def validate_date(date_str: str) -> bool:
-        """اعتبارسنجی تاریخ (فرمت YYYY-MM-DD)"""
+        """اعتبارسنجی تاریخ (فرمت ۱۴۰۳/۰۸/۱۵)"""
         try:
-            datetime.strptime(date_str, '%Y-%m-%d')
+            # تبدیل اعداد فارسی به انگلیسی
+            persian_digits = '۰۱۲۳۴۵۶۷۸۹'
+            english_digits = '0123456789'
+            trans_table = str.maketrans(persian_digits, english_digits)
+            date_str_eng = date_str.translate(trans_table)
+            
+            # بررسی فرمت کلی
+            if not re.match(r'^\d{4}/\d{1,2}/\d{1,2}$', date_str_eng):
+                return False
+            
+            parts = date_str_eng.split('/')
+            if len(parts) != 3:
+                return False
+            
+            year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
+            
+            # بررسی محدوده سال (1400-1410)
+            if not (1400 <= year <= 1410):
+                return False
+            
+            # بررسی محدوده ماه
+            if not (1 <= month <= 12):
+                return False
+            
+            # بررسی محدوده روز
+            if not (1 <= day <= 31):
+                return False
+            
+            # بررسی روزهای ماه (ساده)
+            if month in [7, 8, 9, 10, 11] and day > 30:  # ماه‌های 30 روزه
+                return False
+            if month == 12 and day > 29:  # اسفند
+                return False
+            
             return True
         except:
             return False
     
     @staticmethod
     def validate_time(time_str: str) -> bool:
-        """اعتبارسنجی زمان (فرمت HH:MM)"""
+        """اعتبارسنجی زمان (فرمت ۱۸:۳۰ یا ۶ عصر)"""
         try:
-            datetime.strptime(time_str, '%H:%M')
+            # تبدیل اعداد فارسی به انگلیسی
+            persian_digits = '۰۱۲۳۴۵۶۷۸۹'
+            english_digits = '0123456789'
+            trans_table = str.maketrans(persian_digits, english_digits)
+            time_str_eng = time_str.translate(trans_table).strip()
+            
+            # بررسی فرمت 24 ساعته (مثل 18:30)
+            if re.match(r'^\d{1,2}:\d{2}$', time_str_eng):
+                parts = time_str_eng.split(':')
+                hour, minute = int(parts[0]), int(parts[1])
+                return 0 <= hour <= 23 and 0 <= minute <= 59
+            
+            # بررسی فرمت 12 ساعته فارسی
+            patterns = [
+                r'^\d{1,2}\s*(صبح|ظهر|عصر|شب|بعدازظهر)$',
+                r'^\d{1,2}:\d{2}\s*(صبح|ظهر|عصر|شب|بعدازظهر)$'
+            ]
+            
+            for pattern in patterns:
+                if re.match(pattern, time_str_eng):
+                    return True
+            
+            return False
+        except:
+            return False
+    
+    @staticmethod
+    def validate_persian_text(text: str, min_length: int = 2, max_length: int = 100) -> bool:
+        """اعتبارسنجی متن فارسی"""
+        try:
+            if not text or len(text.strip()) < min_length:
+                return False
+            
+            if len(text.strip()) > max_length:
+                return False
+            
+            # بررسی وجود حروف فارسی یا انگلیسی
+            persian_pattern = r'[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFFa-zA-Z\s]'
+            if not re.search(persian_pattern, text):
+                return False
+            
             return True
         except:
             return False
