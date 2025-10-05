@@ -65,16 +65,20 @@ class MandaniStudioBot:
     def get_main_menu_keyboard(self, is_admin: bool = False) -> InlineKeyboardMarkup:
         """ایجاد کیبورد منوی اصلی"""
         keyboard = [
-            [InlineKeyboardButton("🆕 رزرو جدید", callback_data="new_reservation")],
-            [InlineKeyboardButton("🔍 جستجوی رزرو", callback_data="search_reservation")],
-            [InlineKeyboardButton("📋 رزروهای من", callback_data="my_reservations")],
-            [InlineKeyboardButton("📞 تماس با ادمین", callback_data="contact_admin")]
+            [
+                InlineKeyboardButton("🆕 رزرو جدید", callback_data="new_reservation"),
+                InlineKeyboardButton("🔍 جستجو", callback_data="search_reservation")
+            ],
+            [
+                InlineKeyboardButton("📋 رزروهای من", callback_data="my_reservations"),
+                InlineKeyboardButton("📞 تماس", callback_data="contact_admin")
+            ]
         ]
         
         if is_admin:
-            keyboard.extend([
-                [InlineKeyboardButton("👨‍💼 پنل ادمین", callback_data="admin_panel")],
-                [InlineKeyboardButton("📊 آمار", callback_data="statistics")]
+            keyboard.append([
+                InlineKeyboardButton("👨‍💼 پنل ادمین", callback_data="admin_panel"),
+                InlineKeyboardButton("📊 آمار", callback_data="statistics")
             ])
         
         return InlineKeyboardMarkup(keyboard)
@@ -82,12 +86,18 @@ class MandaniStudioBot:
     def get_service_type_keyboard(self) -> InlineKeyboardMarkup:
         """کیبورد انتخاب نوع خدمت"""
         keyboard = [
-            [InlineKeyboardButton("🎂 عکاسی تولد", callback_data="service_birthday")],
-            [InlineKeyboardButton("💒 عکاسی عروسی", callback_data="service_wedding")],
-            [InlineKeyboardButton("💍 فیلمبرداری عقد", callback_data="service_engagement")],
-            [InlineKeyboardButton("📸 عکاسی/فیلمبرداری عمومی", callback_data="service_general")],
-            [InlineKeyboardButton("🔧 سایر", callback_data="service_other")],
-            [InlineKeyboardButton("🔙 بازگشت", callback_data="back_to_main")]
+            [
+                InlineKeyboardButton("🎂 تولد", callback_data="service_birthday"),
+                InlineKeyboardButton("💒 عروسی", callback_data="service_wedding")
+            ],
+            [
+                InlineKeyboardButton("💍 عقد", callback_data="service_engagement"),
+                InlineKeyboardButton("📸 عمومی", callback_data="service_general")
+            ],
+            [
+                InlineKeyboardButton("🔧 سایر", callback_data="service_other"),
+                InlineKeyboardButton("🔙 بازگشت", callback_data="back_to_main")
+            ]
         ]
         return InlineKeyboardMarkup(keyboard)
     
@@ -167,12 +177,18 @@ class MandaniStudioBot:
     def get_admin_panel_keyboard(self) -> InlineKeyboardMarkup:
         """کیبورد پنل ادمین"""
         keyboard = [
-            [InlineKeyboardButton("📋 همه رزروها", callback_data="admin_all_reservations")],
-            [InlineKeyboardButton("⏳ رزروهای در انتظار", callback_data="admin_pending_reservations")],
-            [InlineKeyboardButton("✅ تأیید رزرو", callback_data="admin_confirm_reservation")],
-            [InlineKeyboardButton("❌ لغو رزرو", callback_data="admin_cancel_reservation")],
-            [InlineKeyboardButton("👨‍💼 افزودن ادمین", callback_data="admin_add_admin")],
-            [InlineKeyboardButton("💾 پشتیبان‌گیری", callback_data="admin_backup")],
+            [
+                InlineKeyboardButton("📋 همه رزروها", callback_data="admin_all_reservations"),
+                InlineKeyboardButton("⏳ در انتظار", callback_data="admin_pending_reservations")
+            ],
+            [
+                InlineKeyboardButton("✅ تأیید", callback_data="admin_confirm_reservation"),
+                InlineKeyboardButton("❌ لغو", callback_data="admin_cancel_reservation")
+            ],
+            [
+                InlineKeyboardButton("👨‍💼 افزودن ادمین", callback_data="admin_add_admin"),
+                InlineKeyboardButton("💾 پشتیبان‌گیری", callback_data="admin_backup")
+            ],
             [InlineKeyboardButton("🔙 بازگشت", callback_data="back_to_main")]
         ]
         return InlineKeyboardMarkup(keyboard)
