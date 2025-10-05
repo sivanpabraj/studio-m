@@ -59,6 +59,7 @@ class MandaniStudioBot:
         
         # ذخیره اطلاعات موقت کاربران
         self.user_data = {}
+        self.reservation_drafts = {}  # ذخیره پیش‌نویس رزروها
         
         logger.info("🚀 ربات استودیو ماندنی راه‌اندازی شد")
     
@@ -366,6 +367,7 @@ class MandaniStudioBot:
             # اگر عروسی است، نام عروس را بپرس
             if service_type == 'wedding':
                 await query.edit_message_text(
+                    f"{self.get_progress_indicator('event_details')}\n"
                     f"💒 **{service_name}**\n\n👰 لطفاً نام عروس را وارد کنید:",
                     reply_markup=InlineKeyboardMarkup([[
                         InlineKeyboardButton("🔙 بازگشت", callback_data="back_to_main")
@@ -377,6 +379,7 @@ class MandaniStudioBot:
             else:
                 # برای سایر خدمات، مستقیم به تاریخ مراسم برو
                 await query.edit_message_text(
+                    f"{self.get_progress_indicator('event_details')}\n"
                     f"🎬 **{service_name}**\n\n📅 لطفاً تاریخ مراسم را وارد کنید (فرمت: ۱۴۰۳/۰۸/۱۵):",
                     reply_markup=InlineKeyboardMarkup([[
                         InlineKeyboardButton("🔙 بازگشت", callback_data="back_to_main")
@@ -414,9 +417,163 @@ class MandaniStudioBot:
         else:
             await self.handle_other_callbacks(query, context, data)
     
+    def get_progress_indicator(self, current_step: str) -> str:
+        """نمایش progress indicator برای کاربر"""
+        steps = {
+            'personal_info': '1️⃣ اطلاعات شخصی',
+            'service_type': '2️⃣ انتخاب سرویس', 
+            'event_details': '3️⃣ جزئیات مراسم',
+            'technical_specs': '4️⃣ مشخصات فنی',
+            'confirmation': '5️⃣ تایید نهایی'
+        }
+        
+        progress_map = {
+            'personal_info': '🔵⚪⚪⚪⚪',
+            'service_type': '✅🔵⚪⚪⚪',
+            'event_details': '✅✅🔵⚪⚪',
+            'technical_specs': '✅✅✅🔵⚪',
+            'confirmation': '✅✅✅✅🔵'
+        }
+        
+        return f"{progress_map.get(current_step, '')}\n{steps.get(current_step, '')}\n"
+
+    def get_navigation_keyboard(self, show_back: bool = True, show_skip: bool = False, skip_callback: str = "") -> InlineKeyboardMarkup:
+        """ایجاد کیبورد navigation با دکمه‌های مختلف"""
+        buttons = []
+        
+        if show_skip and skip_callback:
+            buttons.append([InlineKeyboardButton("⏭️ رد کردن", callback_data=skip_callback)])
+        
+        if show_back:
+            buttons.append([InlineKeyboardButton("🔙 بازگشت", callback_data="back_to_main")])
+        
+        return InlineKeyboardMarkup(buttons) if buttons else None
+
+    def get_help_text(self, step: str) -> str:
+        """دریافت متن راهنما برای هر مرحله"""
+        help_texts = {
+            'date_format': """
+📅 **راهنمای تاریخ:**
+• فرمت صحیح: ۱۴۰۳/۰۸/۱۵
+• از اعداد فارسی استفاده کنید
+• سال/ماه/روز
+• مثال: ۱۴۰۳/۱۲/۲۹
+            """,
+            'time_format': """
+🕐 **راهنمای زمان:**
+• فرمت صحیح: ۱۸:۳۰ یا ۶:۳۰ عصر
+• از اعداد فارسی استفاده کنید
+• ۲۴ ساعته یا ۱۲ ساعته
+• مثال: ۱۴:۰۰ یا ۲ بعدازظهر
+            """,
+            'phone_format': """
+📱 **راهنمای شماره تماس:**
+• موبایل: ۰۹۱۲۳۴۵۶۷۸۹
+• تلفن ثابت: ۰۲۱۱۲۳۴۵۶۷۸
+• شامل کد شهر/اپراتور
+• بدون فاصله یا خط تیره
+            """
+        }
+        return help_texts.get(step, "")
+
+    def save_reservation_draft(self, user_id: int, current_state: int):
+        """ذخیره پیش‌نویس رزرو"""
+        if user_id in self.user_data:
+            self.reservation_drafts[user_id] = {
+                'data': self.user_data[user_id].copy(),
+                'state': current_state,
+                'timestamp': datetime.now().isoformat()
+            }
+    
+    def load_reservation_draft(self, user_id: int) -> tuple:
+        """بارگیری پیش‌نویس رزرو"""
+        if user_id in self.reservation_drafts:
+            draft = self.reservation_drafts[user_id]
+            # بررسی اینکه پیش‌نویس جدید باشد (کمتر از 24 ساعت)
+            draft_time = datetime.fromisoformat(draft['timestamp'])
+            if (datetime.now() - draft_time).hours < 24:
+                return draft['data'], draft['state']
+            else:
+                # حذف پیش‌نویس قدیمی
+                del self.reservation_drafts[user_id]
+        return None, None
+
+    async def resume_from_state(self, query, context, user_id: int, state: int):
+        """ادامه رزرو از state مشخص"""
+        # بر اساس state، کاربر را به نقطه مناسب هدایت کن
+        if state == WAITING_EVENT_DATE:
+            await query.edit_message_text(
+                f"{self.get_progress_indicator('event_details')}\n"
+                "📅 لطفاً تاریخ مراسم را وارد کنید (فرمت: ۱۴۰۳/۰۸/۱۵):",
+                reply_markup=self.get_navigation_keyboard(),
+                parse_mode=ParseMode.MARKDOWN
+            )
+            return WAITING_EVENT_DATE
+        elif state == WAITING_EVENT_TIME:
+            await query.edit_message_text(
+                f"{self.get_progress_indicator('event_details')}\n"
+                "🕐 لطفاً ساعت شروع مراسم را وارد کنید (مثال: ۱۸:۳۰):",
+                reply_markup=self.get_navigation_keyboard(),
+                parse_mode=ParseMode.MARKDOWN
+            )
+            return WAITING_EVENT_TIME
+        elif state == WAITING_LOCATION:
+            await query.edit_message_text(
+                f"{self.get_progress_indicator('event_details')}\n"
+                "📍 لطفاً مکان مراسم را وارد کنید:",
+                reply_markup=self.get_navigation_keyboard(),
+                parse_mode=ParseMode.MARKDOWN
+            )
+            return WAITING_LOCATION
+        # برای سایر state ها می‌توان اضافه کرد
+        else:
+            await self.start_fresh_reservation(query, context)
+    
+    async def start_fresh_reservation(self, query, context):
+        """شروع رزرو تازه بدون draft"""
+        user_id = query.from_user.id
+        customer = self.db.get_customer_by_telegram_id(user_id)
+        
+        if customer:
+            # کاربر قبلی - انتخاب نوع خدمت
+            await query.edit_message_text(
+                f"{self.get_progress_indicator('service_type')}\n"
+                f"👋 سلام {customer['name']} عزیز!\n\n🎬 لطفاً نوع خدمت مورد نظرتان را انتخاب کنید:",
+                reply_markup=self.get_service_type_keyboard(),
+                parse_mode=ParseMode.MARKDOWN
+            )
+            context.user_data['state'] = WAITING_SERVICE_TYPE
+            return WAITING_SERVICE_TYPE
+        else:
+            # کاربر جدید - دریافت اطلاعات
+            await query.edit_message_text(
+                f"{self.get_progress_indicator('personal_info')}\n"
+                "🆕 **رزرو جدید**\n\nلطفاً نام کامل خود را وارد کنید:",
+                reply_markup=self.get_navigation_keyboard(),
+                parse_mode=ParseMode.MARKDOWN
+            )
+            context.user_data['state'] = WAITING_NAME
+            return WAITING_NAME
+
     async def start_new_reservation(self, query, context):
         """شروع رزرو جدید"""
         user_id = query.from_user.id
+        
+        # بررسی وجود پیش‌نویس
+        draft_data, draft_state = self.load_reservation_draft(user_id)
+        
+        if draft_data:
+            await query.edit_message_text(
+                "📄 **پیش‌نویس موجود**\n\n"
+                "رزرو ناتمامی از شما پیدا شد. می‌خواهید ادامه دهید یا از اول شروع کنید؟",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("▶️ ادامه پیش‌نویس", callback_data="continue_draft")],
+                    [InlineKeyboardButton("🆕 شروع از اول", callback_data="new_reservation_fresh")],
+                    [InlineKeyboardButton("🔙 بازگشت", callback_data="back_to_main")]
+                ]),
+                parse_mode=ParseMode.MARKDOWN
+            )
+            return
         
         # بررسی اینکه آیا کاربر قبلاً اطلاعات داده یا نه
         customer = self.db.get_customer_by_telegram_id(user_id)
@@ -424,12 +581,15 @@ class MandaniStudioBot:
         if customer:
             # کاربر قبلی - انتخاب نوع خدمت
             await query.edit_message_text(
+                f"{self.get_progress_indicator('service_type')}\n"
                 f"👋 سلام {customer['name']} عزیز!\n\n🎬 لطفاً نوع خدمت مورد نظرتان را انتخاب کنید:",
-                reply_markup=self.get_service_type_keyboard()
+                reply_markup=self.get_service_type_keyboard(),
+                parse_mode=ParseMode.MARKDOWN
             )
         else:
             # کاربر جدید - دریافت اطلاعات
             await query.edit_message_text(
+                f"{self.get_progress_indicator('personal_info')}\n"
                 "🆕 **رزرو جدید**\n\nلطفاً نام کامل خود را وارد کنید:",
                 reply_markup=InlineKeyboardMarkup([[
                     InlineKeyboardButton("🔙 بازگشت", callback_data="back_to_main")
@@ -670,6 +830,9 @@ class MandaniStudioBot:
             self.user_data[user_id] = {}
         self.user_data[user_id]['name'] = name
         
+        # ذخیره پیش‌نویس
+        self.save_reservation_draft(user_id, WAITING_FAMILY_NAME)
+        
         await update.message.reply_text(
             f"✅ نام ثبت شد: **{name}**\n\n👨‍👩‍👧‍👦 لطفاً نام خانوادگی خود را وارد کنید:",
             reply_markup=InlineKeyboardMarkup([[
@@ -750,8 +913,10 @@ class MandaniStudioBot:
             )
             
             await update.message.reply_text(
+                f"{self.get_progress_indicator('service_type')}\n"
                 f"✅ اطلاعات شما ثبت شد!\n\n🎬 حالا لطفاً نوع خدمت مورد نظرتان را انتخاب کنید:",
-                reply_markup=self.get_service_type_keyboard()
+                reply_markup=self.get_service_type_keyboard(),
+                parse_mode=ParseMode.MARKDOWN
             )
             
             context.user_data['state'] = WAITING_SERVICE_TYPE
@@ -1075,6 +1240,24 @@ class MandaniStudioBot:
                     InlineKeyboardButton("🔙 منوی اصلی", callback_data="back_to_main")
                 ]])
             )
+        
+        # ادامه پیش‌نویس
+        elif data == "continue_draft":
+            draft_data, draft_state = self.load_reservation_draft(user_id)
+            if draft_data:
+                self.user_data[user_id] = draft_data
+                # برگشت به state مناسب
+                await self.resume_from_state(query, context, user_id, draft_state)
+            else:
+                await query.edit_message_text("❌ پیش‌نویس یافت نشد. لطفاً رزرو جدید شروع کنید.")
+        
+        # شروع رزرو تازه (پاک کردن draft)
+        elif data == "new_reservation_fresh":
+            if user_id in self.reservation_drafts:
+                del self.reservation_drafts[user_id]
+            if user_id in self.user_data:
+                del self.user_data[user_id]
+            await self.start_fresh_reservation(query, context)
     
     async def handle_email_skip(self, query, context):
         """مدیریت رد کردن ایمیل"""
