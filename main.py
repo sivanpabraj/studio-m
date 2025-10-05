@@ -40,10 +40,10 @@ MAIN_ADMIN_ID = config.MAIN_ADMIN_ID
 
 # Conversation states
 (WAITING_NAME, WAITING_FAMILY_NAME, WAITING_PHONE, WAITING_EMAIL, WAITING_SERVICE_TYPE,
- WAITING_BRIDE_NAME, WAITING_GUEST_COUNT, WAITING_EVENT_DATE, WAITING_LOCATION,
- WAITING_CAMERAS, WAITING_CAMERA_QUALITY, WAITING_HELISHOT, WAITING_PHOTOGRAPHERS, 
- WAITING_DURATION, WAITING_EVENT_TIME, WAITING_CUSTOM_COST, WAITING_PAYMENT_METHOD, 
- WAITING_TRANSACTION_ID, WAITING_SEARCH_QUERY, WAITING_ADMIN_USERNAME) = range(20)
+ WAITING_BRIDE_NAME, WAITING_GUEST_COUNT, WAITING_EVENT_DATE, WAITING_EVENT_TIME, WAITING_LOCATION,
+ WAITING_DURATION, WAITING_SPECIAL_REQUESTS, WAITING_CAMERAS, WAITING_CAMERA_QUALITY, 
+ WAITING_HELISHOT, WAITING_PHOTOGRAPHERS, WAITING_CUSTOM_COST, WAITING_PAYMENT_METHOD, 
+ WAITING_TRANSACTION_ID, WAITING_SEARCH_QUERY, WAITING_ADMIN_USERNAME) = range(21)
 
 
 class MandaniStudioBot:
@@ -140,7 +140,10 @@ class MandaniStudioBot:
         # جزئیات عمومی
         notification_text += f"""
 📅 **تاریخ مراسم:** {user_data.get('event_date', 'نامشخص')}
-📍 **مکان:** {user_data.get('location', 'نامشخص')}
+� **زمان شروع:** {user_data.get('event_time', 'نامشخص')}
+�📍 **مکان:** {user_data.get('location', 'نامشخص')}
+⏱️ **مدت زمان:** {user_data.get('duration', 'نامشخص')}
+📝 **درخواست‌های خاص:** {user_data.get('special_requests', 'ندارد')}
 📷 **تعداد دوربین:** {user_data.get('cameras', 'نامشخص')}
 🎥 **کیفیت دوربین:** {user_data.get('camera_quality', 'نامشخص')}
 🚁 **هلی‌شات:** {'بله' if user_data.get('helishot', False) else 'خیر'}
@@ -816,7 +819,30 @@ class MandaniStudioBot:
         self.user_data[user_id]['event_date'] = event_date
         
         await update.message.reply_text(
-            f"✅ تاریخ مراسم ثبت شد: {event_date}\n\n📍 لطفاً مکان مراسم را وارد کنید:",
+            f"✅ تاریخ مراسم ثبت شد: {event_date}\n\n� لطفاً ساعت شروع مراسم را وارد کنید (مثال: ۱۸:۳۰):",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("🔙 بازگشت", callback_data="back_to_main")
+            ]])
+        )
+        
+        return WAITING_EVENT_TIME
+    
+    async def handle_event_time_input(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """مدیریت ورودی زمان مراسم"""
+        user_id = update.effective_user.id
+        event_time = update.message.text.strip()
+        
+        # اعتبارسنجی ساده زمان
+        if not ValidationUtils.validate_time(event_time):
+            await update.message.reply_text(
+                "❌ زمان نامعتبر است!\n\nلطفاً زمان را به فرمت صحیح وارد کنید:\n• مثال: ۱۸:۳۰ یا ۶:۳۰ عصر"
+            )
+            return WAITING_EVENT_TIME
+        
+        self.user_data[user_id]['event_time'] = event_time
+        
+        await update.message.reply_text(
+            f"✅ زمان شروع مراسم ثبت شد: {event_time}\n\n📍 لطفاً مکان مراسم را وارد کنید:",
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton("🔙 بازگشت", callback_data="back_to_main")
             ]])
@@ -836,7 +862,59 @@ class MandaniStudioBot:
         self.user_data[user_id]['location'] = location
         
         await update.message.reply_text(
-            f"✅ مکان مراسم ثبت شد: {location}\n\n📷 لطفاً تعداد دوربین مورد نظر را انتخاب کنید:",
+            f"✅ مکان مراسم ثبت شد: {location}\n\n⏱️ لطفاً مدت زمان مراسم را وارد کنید (مثال: ۴ ساعت):",
+            reply_markup=InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton("۲ ساعت", callback_data="duration_2"),
+                    InlineKeyboardButton("۳ ساعت", callback_data="duration_3")
+                ],
+                [
+                    InlineKeyboardButton("۴ ساعت", callback_data="duration_4"),
+                    InlineKeyboardButton("۵ ساعت", callback_data="duration_5")
+                ],
+                [
+                    InlineKeyboardButton("۶ ساعت", callback_data="duration_6"),
+                    InlineKeyboardButton("تمام روز", callback_data="duration_full")
+                ],
+                [InlineKeyboardButton("🔙 بازگشت", callback_data="back_to_main")]
+            ])
+        )
+        
+        return WAITING_DURATION
+    
+    async def handle_duration_input(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """مدیریت ورودی مدت زمان مراسم"""
+        user_id = update.effective_user.id
+        duration = update.message.text.strip()
+        
+        # اگر کاربر متن وارد کرده، اعتبارسنجی کن
+        if len(duration) < 2:
+            await update.message.reply_text("❌ لطفاً مدت زمان مراسم را وارد کنید (مثال: ۴ ساعت)")
+            return WAITING_DURATION
+        
+        self.user_data[user_id]['duration'] = duration
+        
+        await update.message.reply_text(
+            f"✅ مدت زمان مراسم ثبت شد: {duration}\n\n📝 آیا درخواست یا نیاز خاصی دارید؟ (اختیاری)",
+            reply_markup=InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton("⏭️ رد کردن", callback_data="skip_special_requests"),
+                    InlineKeyboardButton("🔙 بازگشت", callback_data="back_to_main")
+                ]
+            ])
+        )
+        
+        return WAITING_SPECIAL_REQUESTS
+    
+    async def handle_special_requests_input(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """مدیریت ورودی درخواست‌های خاص"""
+        user_id = update.effective_user.id
+        special_requests = update.message.text.strip()
+        
+        self.user_data[user_id]['special_requests'] = special_requests
+        
+        await update.message.reply_text(
+            f"✅ درخواست‌های خاص ثبت شد: {special_requests}\n\n📷 لطفاً تعداد دوربین مورد نظر را انتخاب کنید:",
             reply_markup=self.get_number_keyboard(1, 5, "cameras")
         )
         
@@ -893,6 +971,37 @@ class MandaniStudioBot:
         """مدیریت سایر callback ها"""
         user_id = query.from_user.id
         
+        # انتخاب مدت زمان مراسم
+        if data.startswith("duration_"):
+            duration_value = data.split("_")[1]
+            if duration_value == "full":
+                duration = "تمام روز"
+            else:
+                duration = f"{duration_value} ساعت"
+                
+            self.user_data[user_id]['duration'] = duration
+            
+            await query.edit_message_text(
+                f"✅ مدت زمان مراسم ثبت شد: {duration}\n\n📝 آیا درخواست یا نیاز خاصی دارید؟ (اختیاری)",
+                reply_markup=InlineKeyboardMarkup([
+                    [
+                        InlineKeyboardButton("⏭️ رد کردن", callback_data="skip_special_requests"),
+                        InlineKeyboardButton("🔙 بازگشت", callback_data="back_to_main")
+                    ]
+                ])
+            )
+            return WAITING_SPECIAL_REQUESTS
+            
+        # رد کردن درخواست‌های خاص
+        elif data == "skip_special_requests":
+            self.user_data[user_id]['special_requests'] = None
+            
+            await query.edit_message_text(
+                "📷 لطفاً تعداد دوربین مورد نظر را انتخاب کنید:",
+                reply_markup=self.get_number_keyboard(1, 5, "cameras")
+            )
+            return WAITING_CAMERAS
+        
         # انتخاب تعداد دوربین
         if data.startswith("cameras_"):
             cameras = int(data.split("_")[1])
@@ -942,7 +1051,8 @@ class MandaniStudioBot:
             photographers = int(data.split("_")[1])
             self.user_data[user_id]['photographers'] = photographers
             
-            await self.calculate_and_show_cost(query, context, user_id)
+            # نمایش خلاصه اطلاعات برای تایید
+            await self.show_reservation_summary(query, context, user_id)
         
         # نمایش جزئیات رزرو
         elif data.startswith("view_reservation_"):
@@ -952,6 +1062,19 @@ class MandaniStudioBot:
         # رد کردن ایمیل
         elif data == "skip_email":
             await self.handle_email_skip(query, context)
+            
+        # تایید نهایی رزرو
+        elif data == "confirm_reservation":
+            await self.calculate_and_show_cost(query, context, user_id)
+            
+        # ویرایش اطلاعات
+        elif data == "edit_reservation_info":
+            await query.edit_message_text(
+                "⚠️ برای ویرایش اطلاعات، لطفاً رزرو جدیدی شروع کنید.\n\nاز منوی اصلی گزینه 'رزرو جدید' را انتخاب کنید.",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("🔙 منوی اصلی", callback_data="back_to_main")
+                ]])
+            )
     
     async def handle_email_skip(self, query, context):
         """مدیریت رد کردن ایمیل"""
@@ -974,6 +1097,57 @@ class MandaniStudioBot:
             logger.error(f"خطا در ثبت مشتری: {e}")
             await query.edit_message_text("❌ خطا در ثبت اطلاعات! لطفاً دوباره تلاش کنید.")
     
+    async def show_reservation_summary(self, query, context, user_id):
+        """نمایش خلاصه اطلاعات رزرو برای تایید"""
+        user_data = self.user_data[user_id]
+        
+        # ایجاد متن خلاصه
+        summary_text = "📋 **خلاصه اطلاعات رزرو شما:**\n\n"
+        
+        # اطلاعات شخصی
+        summary_text += f"👤 **نام:** {user_data.get('name', '')} {user_data.get('family_name', '')}\n"
+        summary_text += f"📱 **شماره تماس:** {user_data.get('phone', '')}\n"
+        if user_data.get('email'):
+            summary_text += f"📧 **ایمیل:** {user_data.get('email', '')}\n"
+        
+        # نوع خدمت
+        service_name = CostCalculator.get_service_name(user_data.get('service_type', ''))
+        summary_text += f"\n🎬 **نوع خدمت:** {service_name}\n"
+        
+        # اطلاعات خاص عروسی
+        if user_data.get('service_type') == 'wedding':
+            summary_text += f"💍 **نام عروس:** {user_data.get('bride_name', '')}\n"
+            summary_text += f"👥 **تعداد مهمانان:** {user_data.get('guest_count', '')} نفر\n"
+        
+        # اطلاعات مراسم
+        summary_text += f"\n📅 **تاریخ مراسم:** {user_data.get('event_date', '')}\n"
+        summary_text += f"🕐 **زمان شروع:** {user_data.get('event_time', '')}\n"
+        summary_text += f"📍 **مکان:** {user_data.get('location', '')}\n"
+        summary_text += f"⏱️ **مدت زمان:** {user_data.get('duration', '')}\n"
+        
+        if user_data.get('special_requests'):
+            summary_text += f"📝 **درخواست‌های خاص:** {user_data.get('special_requests', '')}\n"
+        
+        # مشخصات فنی
+        summary_text += f"\n📷 **تعداد دوربین:** {PersianDateUtils.english_to_persian_digits(str(user_data.get('cameras', '')))}\n"
+        summary_text += f"🎥 **کیفیت دوربین:** {user_data.get('camera_quality', '')}\n"
+        summary_text += f"🚁 **هلی‌شات:** {'بله' if user_data.get('helishot', False) else 'خیر'}\n"
+        summary_text += f"👥 **تعداد عکاس:** {PersianDateUtils.english_to_persian_digits(str(user_data.get('photographers', '')))}\n"
+        
+        summary_text += "\n❓ **آیا اطلاعات فوق صحیح است؟**"
+        
+        keyboard = [
+            [InlineKeyboardButton("✅ تایید و ادامه", callback_data="confirm_reservation")],
+            [InlineKeyboardButton("✏️ ویرایش", callback_data="edit_reservation_info")],
+            [InlineKeyboardButton("🔙 منوی اصلی", callback_data="back_to_main")]
+        ]
+        
+        await query.edit_message_text(
+            summary_text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode=ParseMode.MARKDOWN
+        )
+    
     async def calculate_and_show_cost(self, query, context, user_id):
         """محاسبه و نمایش هزینه"""
         user_data = self.user_data[user_id]
@@ -994,6 +1168,9 @@ class MandaniStudioBot:
                 reservation_code=reservation_code,
                 service_type=user_data['service_type'],
                 service_details=user_data,
+                event_date=user_data.get('event_date'),
+                event_time=user_data.get('event_time'),
+                location=user_data.get('location'),
                 total_cost=cost_breakdown['total']
             )
             
@@ -1219,7 +1396,16 @@ class MandaniStudioBot:
                 WAITING_BRIDE_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_bride_name_input)],
                 WAITING_GUEST_COUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_guest_count_input)],
                 WAITING_EVENT_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_event_date_input)],
+                WAITING_EVENT_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_event_time_input)],
                 WAITING_LOCATION: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_location_input)],
+                WAITING_DURATION: [
+                    CallbackQueryHandler(self.handle_other_callbacks),
+                    MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_duration_input)
+                ],
+                WAITING_SPECIAL_REQUESTS: [
+                    CallbackQueryHandler(self.handle_other_callbacks),
+                    MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_special_requests_input)
+                ],
                 WAITING_CAMERAS: [CallbackQueryHandler(self.handle_other_callbacks)],
                 WAITING_CAMERA_QUALITY: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_camera_quality_input)],
                 WAITING_HELISHOT: [CallbackQueryHandler(self.handle_other_callbacks)],
