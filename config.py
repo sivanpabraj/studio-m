@@ -27,25 +27,7 @@ class Config:
     MAIN_ADMIN_ID: int = int(os.getenv('MAIN_ADMIN_ID', '0'))
     
     # ========================================
-    # � تنظیمات پرداخت
-    # ========================================
-    
-    # زرین‌پال
-    ZARINPAL_MERCHANT_ID: str = os.getenv('ZARINPAL_MERCHANT_ID', '')
-    
-    # ملت
-    MELLAT_TERMINAL_ID: str = os.getenv('MELLAT_TERMINAL_ID', '')
-    MELLAT_USERNAME: str = os.getenv('MELLAT_USERNAME', '')
-    MELLAT_PASSWORD: str = os.getenv('MELLAT_PASSWORD', '')
-    
-    # حالت تست پرداخت
-    PAYMENT_SANDBOX: bool = os.getenv('PAYMENT_SANDBOX', 'False').lower() == 'true'
-    
-    # URL وب‌هوک برای callback پرداخت
-    BOT_WEBHOOK_URL: str = os.getenv('BOT_WEBHOOK_URL', '')
-    
-    # ========================================
-    # �🗄️ تنظیمات پایگاه داده
+    # 🗄️ تنظیمات پایگاه داده
     # ========================================
     
     DATABASE_PATH: str = os.getenv('DATABASE_PATH', 'mandani_studio.db')

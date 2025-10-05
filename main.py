@@ -1710,7 +1710,7 @@ class MandaniStudioBot:
                 except Exception as e:
                     logger.error(f"خطا در ارسال یادآوری تحویل: {e}")
     
-    def run(self):
+    def run(self, webhook_mode=False):
         """اجرای ربات"""
         # ایجاد Application با JobQueue
         try:
@@ -1752,8 +1752,23 @@ class MandaniStudioBot:
         
         logger.info("🚀 ربات استودیو ماندنی شروع به کار کرد...")
         
-        # شروع polling
-        application.run_polling(drop_pending_updates=True)
+        if webhook_mode:
+            # تنظیم webhook mode برای hosting
+            webhook_url = os.getenv('WEBHOOK_URL')
+            if not webhook_url:
+                logger.error("❌ WEBHOOK_URL تنظیم نشده است!")
+                sys.exit(1)
+            
+            logger.info(f"🌐 تنظیم webhook: {webhook_url}")
+            application.run_webhook(
+                listen="0.0.0.0",
+                port=int(os.getenv('WEBHOOK_PORT', 8443)),
+                webhook_url=webhook_url,
+                drop_pending_updates=True
+            )
+        else:
+            # شروع polling برای development
+            application.run_polling(drop_pending_updates=True)
 
 
 def main():
@@ -1762,8 +1777,18 @@ def main():
         print("❌ لطفاً BOT_TOKEN را در متغیر محیطی تنظیم کنید!")
         sys.exit(1)
     
+    # تشخیص محیط اجرا
+    environment = os.getenv('ENVIRONMENT', 'development')
+    webhook_mode = environment == 'production' and os.getenv('WEBHOOK_URL')
+    
     bot = MandaniStudioBot()
-    bot.run()
+    
+    if webhook_mode:
+        logger.info("🌐 اجرا در حالت webhook (production)")
+        bot.run(webhook_mode=True)
+    else:
+        logger.info("🔄 اجرا در حالت polling (development)")
+        bot.run(webhook_mode=False)
 
 
 if __name__ == "__main__":

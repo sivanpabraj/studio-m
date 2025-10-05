@@ -1,44 +1,37 @@
 # 🤖 وابستگی‌های ربات استودیو ماندنی
-# Mandani Studio Bot Dependencies
+# Mandani Studio Bot Dependencies - Production Ready
 
-# Telegram Bot Framework (Latest stable)
+# Core Telegram Bot Framework
 python-telegram-bot==20.7
 
 # PDF Generation
 reportlab==4.0.5
 
-# Environment Variables
+# Environment Variables Management
 python-dotenv==1.0.0
 
-# Better Persian Date Support  
+# Persian Date Support  
 jdatetime==4.1.0
 
-# Enhanced JSON Logging
+# Enhanced Logging
 python-json-logger==2.0.7
 
-# HTTP Requests (for external APIs)
+# HTTP Requests
 requests==2.31.0
-
-# Async HTTP Client
+aiohttp==3.8.6
 httpx==0.25.2
-
-# Performance and Monitoring
-psutil==5.9.6
 
 # Data Validation
 pydantic==2.5.0
 
-# For environment configuration
-pydantic==2.4.2
+# Performance Monitoring
+psutil==5.9.6
 
-# For HTTP requests (if needed for external APIs)
-requests==2.31.0
-
-# For async HTTP requests
-aiohttp==3.8.6
-
-# For better error handling and monitoring
+# Error Tracking (Optional)
 sentry-sdk==1.32.0
 
-# For job scheduling
+# Job Scheduling for Reminders
 APScheduler==3.10.4
+
+# Additional dependencies for hosting
+gunicorn==21.2.0
