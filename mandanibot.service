@@ -1,0 +1,72 @@
+# 🖥️ فایل سرویس systemd برای ربات استودیو مندانی
+# Systemd service file for Mandani Studio Bot
+#
+# نحوه استفاده:
+# 1. این فایل را در /etc/systemd/system/mandanibot.service کپی کنید
+# 2. مسیرها و کاربر را بر اساس سرور خود تغییر دهید
+# 3. دستورات زیر را اجرا کنید:
+#    sudo systemctl daemon-reload
+#    sudo systemctl enable mandanibot
+#    sudo systemctl start mandanibot
+
+[Unit]
+Description=Mandani Studio Telegram Bot
+After=network.target
+After=systemd-user-sessions.service
+After=network-online.target
+
+[Service]
+Type=simple
+User=mandanibot
+Group=mandanibot
+WorkingDirectory=/home/mandanibot/mandanibot
+Environment=PATH=/home/mandanibot/mandanibot/venv/bin
+ExecStart=/home/mandanibot/mandanibot/venv/bin/python main.py
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+Restart=always
+RestartSec=10
+
+# تنظیمات امنیتی
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/home/mandanibot/mandanibot
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+# تنظیمات لاگ
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=mandanibot
+
+[Install]
+WantedBy=multi-user.target
+
+# ========================================
+# دستورات مفید برای مدیریت سرویس:
+# ========================================
+#
+# شروع سرویس:
+# sudo systemctl start mandanibot
+#
+# توقف سرویس:
+# sudo systemctl stop mandanibot
+#
+# راه‌اندازی مجدد:
+# sudo systemctl restart mandanibot
+#
+# مشاهده وضعیت:
+# sudo systemctl status mandanibot
+#
+# مشاهده لاگ‌ها:
+# journalctl -u mandanibot -f
+#
+# فعال‌سازی شروع خودکار:
+# sudo systemctl enable mandanibot
+#
+# غیرفعال‌سازی شروع خودکار:
+# sudo systemctl disable mandanibot
