@@ -1,5 +1,5 @@
 """
-⚙️ ماژول پیکربندی ربات استودیو مندانی
+⚙️ ماژول پیکربندی ربات استودیو ماندنی
 Configuration module for Mandani Studio Bot
 
 این ماژول تمام تنظیمات ربات را از متغیرهای محیطی خوانده و مدیریت می‌کند
@@ -45,13 +45,13 @@ class Config:
     # 🏪 اطلاعات استودیو
     # ========================================
     
-    STUDIO_NAME: str = os.getenv('STUDIO_NAME', 'استودیو مندانی')
+    STUDIO_NAME: str = os.getenv('STUDIO_NAME', 'استودیو ماندنی')
     STUDIO_PHONE: str = os.getenv('STUDIO_PHONE', '09184004893')
     STUDIO_EMAIL: str = os.getenv('STUDIO_EMAIL', 'studiomandani@gmail.com')
     STUDIO_WEBSITE: str = os.getenv('STUDIO_WEBSITE', '@mandanistudiooo')
     STUDIO_ADDRESS: str = os.getenv('STUDIO_ADDRESS', 'کردستان مریوان، ده متری ورودی شهرک نوروز')
     STUDIO_CARD_NUMBER: str = os.getenv('STUDIO_CARD_NUMBER', '1234-5678-9012-3456')
-    STUDIO_CARD_HOLDER: str = os.getenv('STUDIO_CARD_HOLDER', 'استودیو مندانی')
+    STUDIO_CARD_HOLDER: str = os.getenv('STUDIO_CARD_HOLDER', 'استودیو ماندنی')
     
     # ========================================
     # 🔔 تنظیمات یادآوری

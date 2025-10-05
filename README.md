@@ -1,4 +1,4 @@
-# 🎬 ربات تلگرام استودیو مندانی
+# 🎬 ربات تلگرام استودیو ماندنی
 # Mandani Studio Telegram Bot
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
